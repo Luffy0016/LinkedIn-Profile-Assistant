@@ -1,5 +1,13 @@
- // 1. Select the new API key input from the UI
-const apiKeyInput   = document.getElementById('apiKeyInput');
+/**
+ * LinkedIn Profile Assistant - Logic Layer
+ * Powered by Google Gemini 1.5 Flash
+ */
+
+// 1. Setup - Replace with your key from https://aistudio.google.com/
+const API_KEY = 'PASTE_YOUR_GEMINI_KEY_HERE'; 
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+
+// 2. Element Selectors
 const profileInput   = document.getElementById('profileInput');
 const generateButton = document.getElementById('generateButton');
 const errorDiv       = document.getElementById('error');
@@ -10,80 +18,7 @@ const copyBtn        = document.getElementById('copyBtn');
 
 let isLoading = false;
 
-// 2. Load saved key from your browser's memory so you don't have to re-paste it
-if (localStorage.getItem('gemini_api_key')) {
-  apiKeyInput.value = localStorage.getItem('gemini_api_key');
-}
-
-// 3. Save the key locally whenever you type it in the box
-apiKeyInput.addEventListener('input', (e) => {
-  localStorage.setItem('gemini_api_key', e.target.value);
-});
-
-async function callAI(userInput, key) {
-  // We use the key provided in the UI box
-  const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${key}`;
-
-  const prompt = `You are an expert career coach specialising in LinkedIn profiles.
-Based on the skills and experience below, write a SHORT, punchy LinkedIn "About" summary.
-STRICT rules:
-- Maximum 3 paragraphs, maximum 220 words total
-- First paragraph: 1–2 sentence hook — no "I am a…" openers
-- Second paragraph: top skills + one standout achievement
-- Third paragraph: one sentence on what they're looking for
-- Tone: confident, human, zero corporate jargon
-- Plain text only, no bullet points, no markdown`;
-
-  const response = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt + "\n\nUser Input: " + userInput }] }]
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.message || `API Error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || "No summary returned.";
-}
-
-async function handleGenerate() {
-  if (isLoading) return;
-  
-  // Get the key and input at the moment the button is clicked
-  const key = apiKeyInput.value.trim();
-  const userInput = profileInput.value.trim();
-
-  if (!key) {
-    showError('Please enter your Gemini API Key in the settings box at the top.');
-    return;
-  }
-  if (userInput.length < 20) {
-    showError('Tell me a bit more! Need at least 20 characters.');
-    return;
-  }
-
-  hideError();
-  hideResult();
-  setLoading(true);
-
-  try {
-    const summary = await callAI(userInput, key);
-    summaryText.textContent = summary;
-    resultSection.hidden = false;
-    resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  } catch (err) {
-    showError(err.message || 'Something went wrong.');
-  } finally {
-    setLoading(false);
-  }
-}
-
-// UI State Helpers
+// 3. UI State Helpers
 function setLoading(state) {
   isLoading = state;
   generateButton.disabled = state;
@@ -94,22 +29,127 @@ function setLoading(state) {
 function showError(msg) {
   errorMessage.textContent = msg;
   errorDiv.hidden = false;
+  errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function hideError() { errorDiv.hidden = true; }
-function hideResult() { resultSection.hidden = true; }
+function hideError() {
+  errorDiv.hidden = true;
+  errorMessage.textContent = '';
+}
 
-// Listeners
+function hideResult() {
+  resultSection.hidden = true;
+  summaryText.textContent = '';
+}
+
+// 4. Core AI Function
+async function callAI(userInput) {
+  const prompt = `You are an expert career coach specialising in LinkedIn profiles.
+
+Based on the skills and experience below, write a SHORT, punchy LinkedIn "About" summary.
+
+STRICT rules:
+- Maximum 3 paragraphs, maximum 220 words total
+- First paragraph: 1–2 sentence hook — no "I am a…" openers
+- Second paragraph: top skills + one standout achievement
+- Third paragraph: one sentence on what they're looking for
+- Tone: confident, human, zero corporate jargon
+- Plain text only, no bullet points, no markdown
+
+User's input:
+${userInput}`;
+
+  const response = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        parts: [{ text: prompt }]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  
+  // Navigate Gemini's response object
+  const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  
+  if (!generatedText) throw new Error('Gemini didn\'t return a summary. Please try again.');
+  
+  return generatedText.trim();
+}
+
+// 5. Event Handlers
+async function handleGenerate() {
+  if (isLoading) return;
+  hideError();
+  hideResult();
+
+  const userInput = profileInput.value.trim();
+  
+  // Basic Validation
+  if (!userInput) {
+    showError('Please enter your skills and experience first.');
+    profileInput.focus();
+    return;
+  }
+  if (userInput.length < 20) {
+    showError('Tell me a bit more! More detail results in a much better summary.');
+    profileInput.focus();
+    return;
+  }
+
+  setLoading(true);
+  
+  try {
+    const summary = await callAI(userInput);
+    summaryText.textContent = summary;
+    resultSection.hidden = false;
+    resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (err) {
+    console.error("Generation Error:", err);
+    showError(err.message || 'Something went wrong. Please check your API key.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function handleCopy() {
+  const text = summaryText.textContent;
+  if (!text) return;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    copyBtn.classList.add('copied');
+    copyBtn.querySelector('span').textContent = 'Copied!';
+    
+    setTimeout(() => {
+      copyBtn.classList.remove('copied');
+      copyBtn.querySelector('span').textContent = 'Copy';
+    }, 2000);
+  } catch (err) {
+    showError('Failed to copy text.');
+  }
+}
+
+// 6. Listeners
 generateButton.addEventListener('click', handleGenerate);
-copyBtn.addEventListener('click', () => {
-  navigator.clipboard.writeText(summaryText.textContent);
-  copyBtn.querySelector('span').textContent = 'Copied!';
-  setTimeout(() => copyBtn.querySelector('span').textContent = 'Copy', 2000);
-});
+copyBtn.addEventListener('click', handleCopy);
 
+// Shortcut: Ctrl/Cmd + Enter
 profileInput.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
     handleGenerate();
   }
+});
+
+// Clear error on type
+profileInput.addEventListener('input', () => {
+  if (!errorDiv.hidden) hideError();
 });
