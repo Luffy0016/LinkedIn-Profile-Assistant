@@ -1,5 +1,5 @@
  // Replace with your actual Google Gemini API Key
-const API_KEY = 'AIzaSyDm1jOaVUn2t6IsjzoYACPLJEjUaY0Upy8'; 
+const API_KEY = ''; 
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
 
 async function callAI(userInput) {
