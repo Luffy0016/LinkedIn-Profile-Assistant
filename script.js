@@ -5,7 +5,7 @@
 
 // 1. Setup - Replace with your key from https://aistudio.google.com/
 const API_KEY = 'AIzaSyAzUvgdI1tSSCtBLH3D8VT3Eu_eBvXwmIg'; 
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+const API_URL = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
 // 2. Element Selectors
 const profileInput   = document.getElementById('profileInput');
