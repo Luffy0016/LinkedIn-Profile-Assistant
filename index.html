@@ -134,7 +134,7 @@
       <header class="header">
         <div class="badge" aria-hidden="true">
           <span class="badge-dot"></span>
-          Powered by Gemini AI
+          Powered by Claude AI
         </div>
         <h1 class="title">
           <span class="title-line">LinkedIn</span>
@@ -221,8 +221,7 @@
   </div>
 
   <script>
-    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyCaIcxY3ujNon0j0qX61h3Kyq4MXeyPcII';
-    const MAX_RETRIES = 4;
+    const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 
     const profileInput   = document.getElementById('profileInput');
     const generateButton = document.getElementById('generateButton');
@@ -257,42 +256,6 @@
       summaryText.textContent = '';
     }
 
-    async function callGemini(userInput, attempt = 1) {
-      const prompt = `You are an expert career coach specialising in LinkedIn profiles.
-
-Based on the skills and experience below, write a SHORT, punchy LinkedIn "About" summary.
-
-STRICT rules:
-- Maximum 3 paragraphs, maximum 220 words total
-- First paragraph: 1–2 sentence hook — no "I am a…" openers
-- Second paragraph: top skills + one standout achievement
-- Third paragraph: one sentence on what they're looking for
-- Tone: confident, human, zero corporate jargon
-- Plain text only, no bullet points, no markdown
-
-User's input:
-${userInput}`;
-
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-      });
-
-      if (!res.ok) {
-        if (res.status === 429 && attempt <= MAX_RETRIES) {
-          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
-          return callGemini(userInput, attempt + 1);
-        }
-        throw new Error(`API error ${res.status}: ${res.statusText}`);
-      }
-
-      const data = await res.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-      if (!text) throw new Error('No summary returned — please try again.');
-      return text;
-    }
-
     async function handleGenerate() {
       if (isLoading) return;
       hideError();
@@ -311,12 +274,80 @@ ${userInput}`;
       }
 
       setLoading(true);
+      summaryText.textContent = '';
+      summaryText.classList.add('streaming');
+      resultSection.hidden = false;
+
       try {
-        const summary = await callGemini(userInput);
-        summaryText.textContent = summary;
-        resultSection.hidden = false;
-        resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        const response = await fetch(ANTHROPIC_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': '',
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 400,
+            stream: true,
+            messages: [{
+              role: 'user',
+              content: `You are an expert career coach specialising in LinkedIn profiles.
+
+Based on the skills and experience below, write a SHORT, punchy LinkedIn "About" summary.
+
+STRICT rules:
+- Maximum 3 paragraphs, maximum 220 words total
+- First paragraph: 1–2 sentence hook — no "I am a…" openers
+- Second paragraph: top skills + one standout achievement
+- Third paragraph: one sentence on what they're looking for
+- Tone: confident, human, zero corporate jargon
+- Plain text only, no bullet points, no markdown
+
+User's input:
+${userInput}`
+            }]
+          })
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err?.error?.message || `Error ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed?.delta?.text || '';
+              if (delta) {
+                fullText += delta;
+                summaryText.textContent = fullText;
+                resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              }
+            } catch {}
+          }
+        }
+
+        summaryText.classList.remove('streaming');
+
       } catch (err) {
+        summaryText.classList.remove('streaming');
+        hideResult();
         showError(err.message || 'Something went wrong. Please try again.');
       } finally {
         setLoading(false);
@@ -356,8 +387,5 @@ ${userInput}`;
       if (!errorDiv.hidden) hideError();
     });
   </script>
-</body>
-</html>
-  <script src="script.js"></script>
 </body>
 </html>
