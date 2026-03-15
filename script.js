@@ -1,80 +1,108 @@
-const apiKey = "AIzaSyC1nWcw7t6JnX2SJBXQmNm87FjWIWP_ER8";
-const apiUrlBase = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=';
+ const API_URL="https://api.anthropic.com/v1/messages"
 
-const profileInput = document.getElementById('profileInput');
-const generateButton = document.getElementById('generateButton');
-const loadingDiv = document.getElementById('loading');
-const errorDiv = document.getElementById('error');
-const summaryDiv = document.getElementById('result');
-const summaryText = document.querySelector('#summaryText p');
+const API_KEY = prompt("Enter your API key")
 
-async function handleGenerateSummary() {
-  errorDiv.style.display = 'none';
-  summaryDiv.style.display = 'none';
-  summaryText.textContent = '';
+const input=document.getElementById("profileInput")
+const button=document.getElementById("generateButton")
+const result=document.getElementById("result")
+const error=document.getElementById("error")
+const copy=document.getElementById("copyBtn")
 
-  const userText = profileInput.value.trim();
-  if (!userText) {
-    errorDiv.style.display = 'block';
-    errorDiv.querySelector('p').textContent = 'Please enter your skills first.';
-    return;
-  }
+async function generate(){
 
-  generateButton.disabled = true;
-  loadingDiv.style.display = 'flex';
+error.textContent=""
+result.style.display="none"
 
-  const prompt = `
-You are an expert career coach. Based on the following skills and experiences,
-draft a concise and professional summary for a LinkedIn profile.
-The summary should be engaging and highlight the user's strengths.
+const text=input.value.trim()
 
-User's input:
-${userText}
-  `;
-
-  const payload = { contents: [{ parts: [{ text: prompt }] }] };
-
-  let retries = 0, maxRetries = 4, delay = 1000;
-  async function callApi() {
-    try {
-      const res = await fetch(apiUrlBase + apiKey, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        if (res.status === 429 && retries < maxRetries) {
-          retries++;
-          await new Promise(r => setTimeout(r, delay));
-          delay *= 2;
-          return callApi();
-        }
-        throw new Error(`API error: ${res.status} ${res.statusText}`);
-      }
-
-      const result = await res.json();
-      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-      if (text) {
-        summaryText.textContent = text;
-        summaryDiv.style.display = 'block';
-      } else {
-        throw new Error('Invalid response from API — no generated text found.');
-      }
-    } catch (err) {
-      errorDiv.style.display = 'block';
-      errorDiv.querySelector('p').textContent = `Error: ${err.message}`;
-    } finally {
-      loadingDiv.style.display = 'none';
-      generateButton.disabled = false;
-    }
-  }
-
-  callApi();
+if(!text){
+error.textContent="Please enter your experience first."
+return
 }
 
-generateButton.addEventListener('click', handleGenerateSummary);
+button.disabled=true
+button.innerText="Generating..."
 
-profileInput.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') handleGenerateSummary();
-});
+try{
+
+const response=await fetch(API_URL,{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"x-api-key":API_KEY,
+"anthropic-version":"2023-06-01",
+"anthropic-dangerous-direct-browser-access":"true"
+},
+body:JSON.stringify({
+
+model:"claude-3-sonnet-20240229",
+
+max_tokens:400,
+
+messages:[{
+role:"user",
+content:`You are an expert career coach.
+
+Write a strong LinkedIn "About" summary based on the information below.
+
+Rules:
+- Maximum 3 paragraphs
+- Maximum 220 words
+- No bullet points
+- Confident tone
+
+User input:
+${text}`
+}]
+
+})
+})
+
+const data=await response.json()
+
+if(!response.ok){
+throw new Error(data.error?.message || "API error")
+}
+
+const summary=data.content?.[0]?.text || "No response"
+
+result.innerText=summary
+result.style.display="block"
+copy.style.display="block"
+
+}catch(e){
+
+error.textContent=e.message
+
+}finally{
+
+button.disabled=false
+button.innerText="Generate Summary"
+
+}
+
+}
+
+async function copyText(){
+
+const text=result.innerText
+
+await navigator.clipboard.writeText(text)
+
+copy.innerText="Copied!"
+
+setTimeout(()=>{
+copy.innerText="Copy"
+},2000)
+
+}
+
+button.addEventListener("click",generate)
+
+copy.addEventListener("click",copyText)
+
+input.addEventListener("keydown",(e)=>{
+if((e.ctrlKey || e.metaKey) && e.key==="Enter"){
+generate()
+}
+})
