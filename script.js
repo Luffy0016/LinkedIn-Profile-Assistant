@@ -1,13 +1,8 @@
-/**
- * LinkedIn Profile Assistant - Logic Layer
- * Powered by Google Gemini 1.5 Flash
- */
+ const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+// Warning: Exposing API keys in client-side JS is unsafe for production.
+const API_KEY = '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';
+const MAX_RETRIES = 4;
 
-// 1. Setup - Replace with your key from https://aistudio.google.com/
-const API_KEY = 'PASTE_YOUR_GEMINI_KEY_HERE'; 
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-
-// 2. Element Selectors
 const profileInput   = document.getElementById('profileInput');
 const generateButton = document.getElementById('generateButton');
 const errorDiv       = document.getElementById('error');
@@ -18,7 +13,6 @@ const copyBtn        = document.getElementById('copyBtn');
 
 let isLoading = false;
 
-// 3. UI State Helpers
 function setLoading(state) {
   isLoading = state;
   generateButton.disabled = state;
@@ -42,8 +36,7 @@ function hideResult() {
   summaryText.textContent = '';
 }
 
-// 4. Core AI Function
-async function callAI(userInput) {
+async function callAI(userInput, attempt = 1) {
   const prompt = `You are an expert career coach specialising in LinkedIn profiles.
 
 Based on the skills and experience below, write a SHORT, punchy LinkedIn "About" summary.
@@ -59,61 +52,59 @@ STRICT rules:
 User's input:
 ${userInput}`;
 
-  const response = await fetch(API_URL, {
+  const res = await fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{ text: prompt }]
-      }]
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Authorization': `Bearer ${API_KEY}`, 
+      'HTTP-Referer': 'https://luffy0016.github.io', 
+      'X-Title': 'LinkedIn Profile Assistant' 
+    },
+    body: JSON.stringify({ 
+      model: 'meta-llama/llama-3.1-8b-instruct:free', 
+      messages: [{ role: 'user', content: prompt }] 
     })
   });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+  if (!res.ok) {
+    if (res.status === 429 && attempt <= MAX_RETRIES) {
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+      return callAI(userInput, attempt + 1);
+    }
+    throw new Error(`API error ${res.status}: ${res.statusText}`);
   }
 
-  const data = await response.json();
-  
-  // Navigate Gemini's response object
-  const generatedText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  
-  if (!generatedText) throw new Error('Gemini didn\'t return a summary. Please try again.');
-  
-  return generatedText.trim();
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content ?? null;
+  if (!text) throw new Error('No summary returned — please try again.');
+  return text;
 }
 
-// 5. Event Handlers
 async function handleGenerate() {
   if (isLoading) return;
   hideError();
   hideResult();
 
   const userInput = profileInput.value.trim();
-  
-  // Basic Validation
   if (!userInput) {
-    showError('Please enter your skills and experience first.');
+    showError('Please enter your skills and experience before generating.');
     profileInput.focus();
     return;
   }
   if (userInput.length < 20) {
-    showError('Tell me a bit more! More detail results in a much better summary.');
+    showError('Please add a bit more detail — the more you share, the better the summary.');
     profileInput.focus();
     return;
   }
 
   setLoading(true);
-  
   try {
     const summary = await callAI(userInput);
     summaryText.textContent = summary;
     resultSection.hidden = false;
     resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (err) {
-    console.error("Generation Error:", err);
-    showError(err.message || 'Something went wrong. Please check your API key.');
+    showError(err.message || 'Something went wrong. Please try again.');
   } finally {
     setLoading(false);
   }
@@ -122,26 +113,27 @@ async function handleGenerate() {
 async function handleCopy() {
   const text = summaryText.textContent;
   if (!text) return;
-
   try {
     await navigator.clipboard.writeText(text);
-    copyBtn.classList.add('copied');
-    copyBtn.querySelector('span').textContent = 'Copied!';
-    
-    setTimeout(() => {
-      copyBtn.classList.remove('copied');
-      copyBtn.querySelector('span').textContent = 'Copy';
-    }, 2000);
-  } catch (err) {
-    showError('Failed to copy text.');
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(summaryText);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+    window.getSelection().removeAllRanges();
   }
+  copyBtn.classList.add('copied');
+  copyBtn.querySelector('span').textContent = 'Copied!';
+  setTimeout(() => {
+    copyBtn.classList.remove('copied');
+    copyBtn.querySelector('span').textContent = 'Copy';
+  }, 2000);
 }
 
-// 6. Listeners
 generateButton.addEventListener('click', handleGenerate);
 copyBtn.addEventListener('click', handleCopy);
 
-// Shortcut: Ctrl/Cmd + Enter
 profileInput.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();
@@ -149,7 +141,6 @@ profileInput.addEventListener('keydown', (e) => {
   }
 });
 
-// Clear error on type
 profileInput.addEventListener('input', () => {
   if (!errorDiv.hidden) hideError();
 });
