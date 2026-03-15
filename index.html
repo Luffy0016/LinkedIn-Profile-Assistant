@@ -38,26 +38,25 @@
 
       <main id="main-content">
         <div class="card">
+          <details style="margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 15px;">
+            <summary style="cursor: pointer; font-size: 13px; color: var(--accent); font-weight: 500;">
+              ⚙️ API Settings (Required for GitHub)
+            </summary>
+            <div class="form-group" style="margin-top: 15px;">
+              <label for="apiKeyInput" class="form-label">Gemini API Key</label>
+              <input type="password" id="apiKeyInput" placeholder="Paste your key from AI Studio..." 
+                     style="width:100%; padding:12px; background:rgba(0,0,0,0.3); border:1px solid var(--border); border-radius:8px; color:white;">
+              <p class="input-hint">Your key is saved locally in your browser, NOT on GitHub.</p>
+            </div>
+          </details>
+
           <div class="form-group">
             <label for="profileInput" class="form-label">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                <circle cx="12" cy="7" r="4"/>
-              </svg>
-              Your skills &amp; experience
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Your skills & experience
             </label>
-            <textarea
-              id="profileInput"
-              name="profileInput"
-              rows="6"
-              placeholder="e.g. Front-end developer with React and Tailwind. Interned at two startups, led UI redesign projects, mentored junior developers…"
-              aria-required="true"
-              aria-describedby="input-hint"
-            ></textarea>
-            <p class="input-hint" id="input-hint">
-              More detail = better summary.
-              <span class="shortcut" aria-label="Press Control or Command and Enter to generate">Ctrl + Enter to generate</span>
-            </p>
+            <textarea id="profileInput" name="profileInput" rows="6" placeholder="e.g. Front-end developer with React and Tailwind. Interned at two startups, led UI redesign projects..."></textarea>
+            <p class="input-hint" id="input-hint">More detail = better summary. <span class="shortcut">Ctrl + Enter to generate</span></p>
           </div>
 
           <div class="controls">
