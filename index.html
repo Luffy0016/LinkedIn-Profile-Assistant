@@ -3,43 +3,361 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LinkedIn Profile Assistant</title>
+  <meta name="description" content="Generate a polished, professional LinkedIn summary in seconds using Claude AI. Just enter your skills and experience." />
+  <meta name="theme-color" content="#060d1a" />
+  <title>LinkedIn Profile Assistant — AI-Powered Summary Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:             #060d1a;
+      --surface:        rgba(255,255,255,0.04);
+      --surface-2:      rgba(255,255,255,0.07);
+      --border:         rgba(255,255,255,0.08);
+      --border-focus:   #4f9eff;
+      --text-primary:   #eef2ff;
+      --text-secondary: #94a3b8;
+      --text-muted:     #4b5a6e;
+      --accent:         #4f9eff;
+      --accent-warm:    #a78bfa;
+      --error-bg:       rgba(220,38,38,0.12);
+      --error-border:   rgba(220,38,38,0.3);
+      --error-text:     #fca5a5;
+      --success:        #34d399;
+      --radius-md:      14px;
+      --radius-xl:      28px;
+      --font-display:   'Syne', sans-serif;
+      --font-body:      'DM Sans', sans-serif;
+      --transition:     0.18s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg);
+      color: var(--text-primary);
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    .noise {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+    }
+    .orb { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; filter: blur(80px); opacity: 0.13; animation: drift 14s ease-in-out infinite alternate; }
+    .orb-1 { width:600px;height:600px; background:radial-gradient(circle,#4f9eff 0%,transparent 70%); top:-200px;left:-200px; animation-duration:18s; }
+    .orb-2 { width:500px;height:500px; background:radial-gradient(circle,#a78bfa 0%,transparent 70%); bottom:-150px;right:-150px; animation-duration:14s;animation-delay:-6s; }
+    @keyframes drift { from{transform:translate(0,0) scale(1)} to{transform:translate(40px,30px) scale(1.06)} }
+
+    .page { position:relative;z-index:1;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:40px 20px; }
+    .container { width:100%;max-width:680px;display:flex;flex-direction:column;gap:32px; }
+
+    .header { text-align:center; animation:fadeUp .6s ease both; }
+    .badge { display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);background:rgba(79,158,255,.1);border:1px solid rgba(79,158,255,.2);padding:5px 13px;border-radius:999px;margin-bottom:20px; }
+    .badge-dot { width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse-dot 2s ease infinite; }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
+
+    .title { font-family:var(--font-display);font-size:clamp(34px,6vw,54px);font-weight:800;line-height:1.05;letter-spacing:-.02em;margin-bottom:14px;display:flex;flex-direction:column;gap:2px;align-items:center; }
+    .title-line { display:block;color:var(--text-primary); }
+    .title-line.accent { background:linear-gradient(100deg,var(--accent) 0%,var(--accent-warm) 100%);-webkit-background-clip:text;background-clip:text;color:transparent; }
+    .subtitle { font-size:16px;font-weight:300;color:var(--text-secondary);max-width:480px;margin:0 auto;line-height:1.6; }
+
+    .card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:36px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 24px 60px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.06);animation:fadeUp .6s .1s ease both;display:flex;flex-direction:column;gap:24px; }
+
+    .form-group { display:flex;flex-direction:column;gap:10px; }
+    .form-label { display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:500;color:var(--text-secondary);letter-spacing:.01em; }
+
+    textarea#profileInput { width:100%;min-height:160px;resize:vertical;padding:16px 18px;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-body);font-size:15px;font-weight:300;line-height:1.65;outline:none;transition:border-color var(--transition),box-shadow var(--transition); }
+    textarea#profileInput::placeholder { color:var(--text-muted); }
+    textarea#profileInput:focus { border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(79,158,255,.15); }
+
+    .input-hint { font-size:12.5px;color:var(--text-muted);line-height:1.5;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap; }
+    .shortcut { flex-shrink:0;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:5px;padding:2px 7px;font-size:11px;color:var(--text-muted);white-space:nowrap; }
+
+    .controls { display:flex;justify-content:center; }
+    .btn { position:relative;display:inline-flex;align-items:center;gap:9px;padding:13px 30px;border-radius:999px;border:none;font-family:var(--font-body);font-size:15px;font-weight:500;cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--accent) 0%,var(--accent-warm) 100%);box-shadow:0 6px 24px rgba(79,158,255,.25),inset 0 -2px 0 rgba(0,0,0,.1);transition:transform var(--transition),box-shadow var(--transition),opacity var(--transition);overflow:hidden;min-width:180px;justify-content:center; }
+    .btn:hover:not(:disabled) { transform:translateY(-2px);box-shadow:0 12px 32px rgba(79,158,255,.35); }
+    .btn:active:not(:disabled) { transform:translateY(0); }
+    .btn:focus-visible { outline:2px solid var(--border-focus);outline-offset:3px; }
+    .btn:disabled { opacity:.55;cursor:not-allowed;transform:none; }
+    .btn-icon { flex-shrink:0;transition:transform var(--transition); }
+    .btn:hover:not(:disabled) .btn-icon { transform:rotate(-8deg) scale(1.1); }
+    .btn-loader { display:none;width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;animation:spin .75s linear infinite;flex-shrink:0; }
+    .btn.loading .btn-icon { display:none; }
+    .btn.loading .btn-loader { display:block; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    .alert { display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:var(--radius-md);font-size:14px;line-height:1.5;animation:fadeUp .3s ease both; }
+    .alert[hidden] { display:none; }
+    .alert svg { flex-shrink:0;margin-top:1px; }
+    .alert p { margin:0; }
+    .alert-error { background:var(--error-bg);border:1px solid var(--error-border);color:var(--error-text); }
+
+    .result { display:flex;flex-direction:column;gap:14px;animation:fadeUp .4s ease both; }
+    .result[hidden] { display:none; }
+    .result-header { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+    .result-title { display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--success);letter-spacing:.01em; }
+
+    .copy-btn { display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-secondary);font-family:var(--font-body);font-size:12.5px;font-weight:500;cursor:pointer;transition:background var(--transition),color var(--transition),border-color var(--transition);white-space:nowrap; }
+    .copy-btn:hover { background:rgba(255,255,255,.1);color:var(--text-primary);border-color:rgba(255,255,255,.15); }
+    .copy-btn:focus-visible { outline:2px solid var(--border-focus);outline-offset:2px; }
+    .copy-btn.copied { color:var(--success);border-color:rgba(52,211,153,.3); }
+
+    .summary-box { background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px 22px;font-size:15px;font-weight:300;line-height:1.75;color:var(--text-primary);white-space:pre-wrap;word-break:break-word; }
+
+    .summary-box.streaming::after { content:'▍';display:inline-block;animation:blink .7s step-end infinite;color:var(--accent);margin-left:2px; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    .footer { text-align:center;font-size:13px;color:var(--text-muted);animation:fadeUp .6s .2s ease both; }
+    .footer strong { color:var(--text-secondary);font-weight:500; }
+
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important} }
+    @media (max-width:520px) { .page{padding:24px 16px} .card{padding:24px 20px} .btn{width:100%} }
+  </style>
 </head>
 <body>
+
+  <div class="noise" aria-hidden="true"></div>
+  <div class="orb orb-1" aria-hidden="true"></div>
+  <div class="orb orb-2" aria-hidden="true"></div>
+
   <div class="page">
     <div class="container">
-      <header>
-        <h1 class="title">LinkedIn Profile Assistant</h1>
-        <p class="subtitle">Draft a professional summary using the power of Gemini.</p>
+
+      <header class="header">
+        <div class="badge" aria-hidden="true">
+          <span class="badge-dot"></span>
+          Powered by Gemini AI
+        </div>
+        <h1 class="title">
+          <span class="title-line">LinkedIn</span>
+          <span class="title-line accent">Profile Assistant</span>
+        </h1>
+        <p class="subtitle">
+          Turn your skills and experience into a compelling LinkedIn summary — in seconds.
+        </p>
       </header>
-      <main class="card" role="main">
-        <div>
-          <label for="profileInput">Enter your key skills and experiences:</label>
-          <textarea id="profileInput" placeholder="e.g., Front-end developer, React, TypeScript, UI/UX design, leadership, project management..."></textarea>
-        </div>
-        <div class="controls">
-          <button id="generateButton" class="btn" aria-live="polite">
-            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17c0 .55-.45 1-1 1s-1-.45-1-1v-2c0-.55.45-1 1-1s1 .45 1 1v2zm0-4c0 .55-.45 1-1 1s-1-.45-1-1v-2c0-.55.45-1 1-1s1 .45 1 1v2zm0-4c0 .55-.45 1-1 1s-1-.45-1-1V9c0-.55.45-1 1-1s1 .45 1 1v2zm0-4c0 .55-.45 1-1 1s-1-.45-1-1V5c0-.55.45-1 1-1s1 .45 1 1v2zm0 10c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+
+      <main id="main-content">
+        <div class="card">
+
+          <div class="form-group">
+            <label for="profileInput" class="form-label">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              Your skills &amp; experience
+            </label>
+            <textarea
+              id="profileInput"
+              name="profileInput"
+              rows="6"
+              placeholder="e.g. Front-end developer with React and Tailwind. Interned at two startups, led UI redesign projects, mentored junior developers…"
+              aria-required="true"
+              aria-describedby="input-hint"
+            ></textarea>
+            <p class="input-hint" id="input-hint">
+              More detail = better summary.
+              <span class="shortcut" aria-label="Press Control or Command and Enter to generate">Ctrl + Enter to generate</span>
+            </p>
+          </div>
+
+          <div class="controls">
+            <button id="generateButton" class="btn" type="button" aria-label="Generate LinkedIn summary">
+              <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+              </svg>
+              <span class="btn-label">Generate Summary</span>
+              <span class="btn-loader" aria-hidden="true"></span>
+            </button>
+          </div>
+
+          <div id="error" class="alert alert-error" role="alert" aria-live="assertive" hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <span>Generate Summary</span>
-          </button>
-        </div>
-        <div id="loading" class="loading" aria-hidden="true" style="display:none;">
-          <div class="spinner" role="status" aria-label="Loading"></div>
-        </div>
-        <div id="error" class="error" role="alert"><p></p></div>
-        <div id="result" class="result" aria-live="polite">
-          <h2>Generated Summary</h2>
-          <div id="summaryText" class="summaryBox"><p></p></div>
+            <p id="error-message"></p>
+          </div>
+
+          <section id="result" class="result" aria-live="polite" aria-atomic="true" hidden>
+            <div class="result-header">
+              <h2 class="result-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Your LinkedIn Summary
+              </h2>
+              <button id="copyBtn" class="copy-btn" type="button" aria-label="Copy summary to clipboard">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <span>Copy</span>
+              </button>
+            </div>
+            <div id="summaryText" class="summary-box"></div>
+          </section>
+
         </div>
       </main>
+
+      <footer class="footer">
+        <p>Built by <strong>R. Mahadev</strong> · UI/UX &amp; Front-End Developer</p>
+      </footer>
+
     </div>
   </div>
+
+  <script>
+    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyCaIcxY3ujNon0j0qX61h3Kyq4MXeyPcII';
+    const MAX_RETRIES = 4;
+
+    const profileInput   = document.getElementById('profileInput');
+    const generateButton = document.getElementById('generateButton');
+    const errorDiv       = document.getElementById('error');
+    const errorMessage   = document.getElementById('error-message');
+    const resultSection  = document.getElementById('result');
+    const summaryText    = document.getElementById('summaryText');
+    const copyBtn        = document.getElementById('copyBtn');
+
+    let isLoading = false;
+
+    function setLoading(state) {
+      isLoading = state;
+      generateButton.disabled = state;
+      generateButton.classList.toggle('loading', state);
+      generateButton.querySelector('.btn-label').textContent = state ? 'Generating…' : 'Generate Summary';
+    }
+
+    function showError(msg) {
+      errorMessage.textContent = msg;
+      errorDiv.hidden = false;
+      errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function hideError() {
+      errorDiv.hidden = true;
+      errorMessage.textContent = '';
+    }
+
+    function hideResult() {
+      resultSection.hidden = true;
+      summaryText.textContent = '';
+    }
+
+    async function callGemini(userInput, attempt = 1) {
+      const prompt = `You are an expert career coach specialising in LinkedIn profiles.
+
+Based on the skills and experience below, write a SHORT, punchy LinkedIn "About" summary.
+
+STRICT rules:
+- Maximum 3 paragraphs, maximum 220 words total
+- First paragraph: 1–2 sentence hook — no "I am a…" openers
+- Second paragraph: top skills + one standout achievement
+- Third paragraph: one sentence on what they're looking for
+- Tone: confident, human, zero corporate jargon
+- Plain text only, no bullet points, no markdown
+
+User's input:
+${userInput}`;
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+
+      if (!res.ok) {
+        if (res.status === 429 && attempt <= MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+          return callGemini(userInput, attempt + 1);
+        }
+        throw new Error(`API error ${res.status}: ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+      if (!text) throw new Error('No summary returned — please try again.');
+      return text;
+    }
+
+    async function handleGenerate() {
+      if (isLoading) return;
+      hideError();
+      hideResult();
+
+      const userInput = profileInput.value.trim();
+      if (!userInput) {
+        showError('Please enter your skills and experience before generating.');
+        profileInput.focus();
+        return;
+      }
+      if (userInput.length < 20) {
+        showError('Please add a bit more detail — the more you share, the better the summary.');
+        profileInput.focus();
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const summary = await callGemini(userInput);
+        summaryText.textContent = summary;
+        resultSection.hidden = false;
+        resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (err) {
+        showError(err.message || 'Something went wrong. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    async function handleCopy() {
+      const text = summaryText.textContent;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(summaryText);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+      }
+      copyBtn.classList.add('copied');
+      copyBtn.querySelector('span').textContent = 'Copied!';
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        copyBtn.querySelector('span').textContent = 'Copy';
+      }, 2000);
+    }
+
+    generateButton.addEventListener('click', handleGenerate);
+    copyBtn.addEventListener('click', handleCopy);
+    profileInput.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleGenerate();
+      }
+    });
+    profileInput.addEventListener('input', () => {
+      if (!errorDiv.hidden) hideError();
+    });
+  </script>
+</body>
+</html>
   <script src="script.js"></script>
 </body>
 </html>
