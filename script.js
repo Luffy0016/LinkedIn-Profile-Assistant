@@ -31,7 +31,6 @@ User's input: ${userInput}`;
   }
 
   const data = await res.json();
-  // Gemini's response path is a bit nested
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   
   if (!text) throw new Error('No summary returned.');
